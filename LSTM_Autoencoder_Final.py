@@ -27,7 +27,6 @@ import time
 from sklearn.metrics import ConfusionMatrixDisplay
 
 
-
 SEQUENCE_LEN = dataClass.SEQUENCE_LEN
 DEVICE = dataClass.device
 
@@ -44,13 +43,11 @@ print(f'Shuffle: {dataClass.SHUFFLE}')
 run_path = '/runs/'
 string = f"{run_path}-Day-{day}- Time-{time_str} + V7 - {addTerm}"
 
-""""""
 
 print(f'Shuffle: {dataClass.SHUFFLE}')
 print(f'Seed: {dataClass.seed}')
 print(f'BatchSize: {dataClass.BATCH_SIZE}')
 print(f'Seq len: {dataClass.SEQUENCE_LEN}')
-
 
 print(f'stored: {string}')
 
@@ -107,10 +104,8 @@ class Autoencoder(nn.Module):
 
 model = Autoencoder()
 model.to(device=DEVICE)
-
 data, label = next(iter(train_dataloader))
 summary(model, input_data=data.float(), verbose=2, col_names=["input_size", "output_size", "num_params", "kernel_size", "mult_adds"])
-print("")
 
 #Hooks #Backward Hook for Gradientenueberpruefung
 def backward_hook(module, grad_input, grad_output):
@@ -139,8 +134,9 @@ def register_backward_hook(model):
     model.lstm1_dec.register_full_backward_hook(backward_hook)
     model.lstm2_dec.register_full_backward_hook(backward_hook)
 
-
+    
 #register_backward_hook(model)
+
 
 #Stochastische Dekorrelation, der Aktivierungen einer verdeckten Schicht 
 def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
@@ -153,7 +149,6 @@ def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
             """
     #Batch Size (Number of Samples)
     m = activ.size(dim=0)  
-    
     #Init Tensor
     r = torch.ones((2,), dtype=torch.float64)
     #create Tensor with probs (Random decorrelated rate)
@@ -202,7 +197,7 @@ print(f'Optimizer: {optimizer.__str__()}')
 print(f'R_Param: {R_PARAM}')
 print(f'Y_Param: {Y_PARAM}')
 
-
+#Kovarianzberechnung, zur Überprüfung
 def calculate_cross_cov(activ):
     sum = torch.sum(activ, dim=0)
     mü = (1 / activ.size(dim=0)) * sum
@@ -222,8 +217,6 @@ def calculate_cross_cov(activ):
 #Training
 
 epochs = 30
-
-
 best_valid_loss = 100000000000000
 for epoch in range(epochs):
     model.train()
@@ -231,7 +224,6 @@ for epoch in range(epochs):
     loss_validation = []
     loss_mse_list = []
     jsdc_loss_list = []
-
 
     cov_hl1_list, cov_hl2_list, cov_hl2dec_list, cov_hl1dec_list = [], [], [], []
 
@@ -270,26 +262,17 @@ for epoch in range(epochs):
             hl1dec_decoded_copy = hl1dec.clone().detach()
             cov_hl1dec_decoded, cov_hl1dec_decoded_extern = calculate_cross_cov(hl1dec_decoded_copy)
 
-
             writer.add_scalar("Cov_iteration/hl1_encoded_intern", cov_hl1_encoded, count)
-
             cov_hl1_list.append(cov_hl1_encoded.detach().to('cpu').numpy())
-
             writer.add_scalar("Cov_iteration/hl2_encoded_intern", cov_hl2_encoded, count)
-
             cov_hl2_list.append(cov_hl2_encoded.detach().to('cpu').numpy())
-
             writer.add_scalar("Cov_iteration/hl2dec_decoded_intern", cov_hl2dec_decoded, count)
-
             cov_hl2dec_list.append(cov_hl2dec_decoded.detach().to('cpu').numpy())
-
             writer.add_scalar("Cov_iteration/hl1dec_decoded_intern", cov_hl1dec_decoded, count)
-
             cov_hl1dec_list.append(cov_hl1dec_decoded.detach().to('cpu').numpy())
 
             h = jsdc.detach().to('cpu').numpy()
             jsdc_loss_list.append(h)
-
 
             # record loss function values
             loss_list.append(loss.item())
@@ -298,10 +281,8 @@ for epoch in range(epochs):
             writer.add_scalar("Loss/mse_iteration", loss_mse, count)
             #writer.add_scalar("Loss/jsdc_iteration", jsdc, count)
 
-
             #clean the gradient from iteration
             optimizer.zero_grad()
-
 
             #backprob
             loss.backward()
@@ -324,7 +305,7 @@ for epoch in range(epochs):
     writer.add_scalar("CovList/hl2decoded", np.mean(cov_hl2dec_list), epoch+1)
     writer.add_scalar("CovList/hl1decoded", np.mean(cov_hl1dec_list), epoch+1)
 
-    model.eval()
+    model.eval() #Validierung (Validierungsdatensatz durchlaufen und bestes Modell speichern)
     with torch.no_grad():
         with tqdm(total=len(validation_dataloader)) as pbar2:
             for val_data, label in validation_dataloader:
@@ -353,8 +334,6 @@ for epoch in range(epochs):
             model_validation_path)
 
 
-
-
 #Model save
 torch.save(model, model_train_path)
 
@@ -381,7 +360,7 @@ torch.save({
 # model.eval()
 
 
-#Threshold festlegen
+#Threshold festlegen (Schwellenwertbestimmung)
 #theorie: höchste MSE der Normalen Daten
 #dementsprechend der validierungsdaten des Normalen Datensatzes
 reconstructed_valid_normal = torch.empty(( SEQUENCE_LEN,51), device='cpu')
@@ -560,7 +539,7 @@ print(f'Combined Inc. Normal in Attacked: \n {calculate_metrix(conf_matrix_inc_n
 
 
 
-
+#Eigentliche Methode, die auf dem Trainingsmodell dient nur der Ueberprüfung
 print("On Validation:----------------------------------------------------------------------------------")
 checkpoint = torch.load(model_validation_path)
 model.load_state_dict(checkpoint['model_state_dict'])
