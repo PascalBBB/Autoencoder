@@ -86,31 +86,7 @@ class Normal_Dataset(Dataset):
         self.x_all = x_all
 
         self.set = set
-    #nicht benötigt, da nur für erstmalige erzeugung genutzt
-    def __getitem__(self, index):
-        if self.set == "x_train":
-            return self.x_train[index], self.y_train[index]
-        # if self.set == "x_test":
-        #     return self.x_test[index], self.y_test[index]
-        if self.set == "x_val":
-            return self.x_val[index], self.y_val[index]
-        else:
-            print("Fehler in Dataset Normal getItem, Parameter Pruefen")
-            return None
 
-    def __len__(self):
-        if self.set == "x_train":
-            return self.x_train.shape[0]
-
-        if self.set == "x_val":
-            return self.x_val.shape[0]
-        else:
-            print("Fehler laenge Normal Dataset")
-            return None
-
-
-
-print("Start")
 
 dataset_normal = Normal_Dataset(drop_first=True, set="x_train")
 print("read normal done!")
@@ -136,30 +112,6 @@ class Attacked_Dataset(Dataset):
 
         x_both = pipeline.transform(x_both)
 
-
-
-        # df_normal = df[(df.Class==0)] #Extract Normal
-        # dfy_normal = df_normal["Class"]
-        # y_normal_in_attacked = dfy_normal.to_numpy(dtype=np.int)
-        # del df_normal["Class"]
-        # x_normal_in_attacked = df_normal.to_numpy(np.float64)
-        # x_normal_in_attacked = pipeline.transform(x_normal_in_attacked)
-        #
-        #
-        # df = df[(df.Class == 1)] #Extract Attacked
-        # dfy = df["Class"]
-        # y_all = dfy.to_numpy(dtype=np.int)
-        # del df["Class"]
-        # x_all = df.to_numpy(dtype=np.float64)
-        # x_all = pipeline.transform(x_all)
-        #
-        # self.y = torch.from_numpy(y_all)
-        # self.x = torch.from_numpy(x_all)
-        # self.n_samples = x_all.shape[0]
-        #
-        # self.x_normal_in_attacked = torch.from_numpy(x_normal_in_attacked)
-        # self.y_normal_in_attacked = torch.from_numpy(y_normal_in_attacked)
-
         self.x_full_attacked_inc_normal = torch.from_numpy(x_both)
         self.y_full_attacked_inc_normal = torch.from_numpy(y_both)
 
@@ -167,29 +119,6 @@ class Attacked_Dataset(Dataset):
         self.set = set
         #self.sequence_length = seq_len
 
-    #nicht nötig da nur für erstmalige erzeugung genutzt
-    def __getitem__(self, index):
-
-        # if self.set == "x":
-        #     return self.x[index], self.y[index]
-        # if self.set == "x_normal_in_attacked":
-        #     return self.x_normal_in_attacked[index], self.y_normal_in_attacked[index]
-        if self.set == "x_full_attacked_inc_normal":
-            return self.x_full_attacked_inc_normal[index], self.y_full_attacked_inc_normal[index]
-        else:
-            print("Fehler in getItem Attacked Dataset, Parameter Pruefen")
-            return None
-
-    def __len__(self):
-        # if self.set == "x":
-        #     return self.x.shape[0]
-        # if self.set == "x_normal_in_attacked":
-        #     return self.x_normal_in_attacked.shape[0]
-        if self.set == "x_full_attacked_inc_normal":
-            return self.x_full_attacked_inc_normal.shape[0]
-        else:
-            print("Fehler in länge")
-            return None
 
 
 dataset_attacked = Attacked_Dataset(dataset_normal.pipeline, set="x_full_attacked_inc_normal")
