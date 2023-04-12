@@ -18,7 +18,7 @@ from sklearn.pipeline import Pipeline
 import torch.cuda
 from torchsummary import summary
 
-import LSTM_Autoencoder_Final_ReadData as dataClass #änderungen
+import LSTM_Autoencoder_Final_ReadData as dataClass 
 import datetime
 import statistics as st
 from sklearn.metrics import confusion_matrix
@@ -27,10 +27,6 @@ import time
 from sklearn.metrics import ConfusionMatrixDisplay
 
 
-"""
-Drop First 21600 (first 6 Hours), Normalization Bevore Split; New Window Method
-Copy from V6 nach Grafiktreiberaktualisierung, Namen von Plots geändert
-"""
 
 SEQUENCE_LEN = dataClass.SEQUENCE_LEN
 DEVICE = dataClass.device
@@ -59,32 +55,31 @@ print(f'Seq len: {dataClass.SEQUENCE_LEN}')
 print(f'stored: {string}')
 
 
-model_path = 'tests/testIfSame/Adam1e-3_seed1208_withoutSDC/'
+model_path = 'runs/'
 
-model_train_path = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + ".pt"
-model_train_path_dict = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
-model_validation_path = model_path + "BaseLine_LSTM_Validation" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
+#model_train_path = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + ".pt"
+#model_train_path_dict = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
+#model_validation_path = model_path + "BaseLine_LSTM_Validation" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
 
 
-plot_save_path = 'tests/testIfSame/Adam1e-3_seed1208_withoutSDC/'
+plot_save_path = 'runs/'
 
-#print(f'Model Train Stored at: {model_train_path}')
-print(f'Model Train Dict Stored at: {model_train_path_dict}')
-print(f'Model Validation Stored at: {model_validation_path}')
-print(f'Plot Path: {plot_save_path}')
+
+#print(f'Model Train Dict Stored at: {model_train_path_dict}')
+#print(f'Model Validation Stored at: {model_validation_path}')
+#print(f'Plot Path: {plot_save_path}')
 
 writer = SummaryWriter(log_dir = string)
 start_time = time.time()
 
-#Dataset
+#Dataset Daten einlesen
 train_dataloader = dataClass.train_dataloader_window
 validation_dataloader = dataClass.validation_dataloader_window
 test_data_attacked_full_inc_normal_loader = dataClass.attacked_test_dataloader_window
 
-#HIDDEN_LAYER_SIZE = 16
+
 INPUT_DIM = 51
-#Basic Model 1 Hidden Layer
-"""Eigentlich 51-36-18 davor sonst immer 51-42-24"""
+
 class Autoencoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -99,7 +94,6 @@ class Autoencoder(nn.Module):
         self.activation = nn.ReLU()
 
     def forward(self, x):
-        #print(x.shape)
         lin1 = self.linear1(x)
         activ1 = self.activation(lin1)
         lstm1, (hl1,_) = self.lstm1(activ1)
@@ -108,7 +102,6 @@ class Autoencoder(nn.Module):
         lstm1_dec, (hl1dec,_) = self.lstm1_dec(lstm2_dec)
         lin2 = self.linear1_dec(lstm1_dec)
         activ2 = self.activation(lin2)
-        #return hl1, hl2, hl2dec, hl1dec, lstm1_dec
         return lstm1[:, -1, :], lstm2[:, -1, :], lstm2_dec[:, -1, :], lstm1_dec[:, -1, :], activ2
 
 
@@ -119,13 +112,10 @@ data, label = next(iter(train_dataloader))
 summary(model, input_data=data.float(), verbose=2, col_names=["input_size", "output_size", "num_params", "kernel_size", "mult_adds"])
 print("")
 
-#Hooks
+#Hooks #Backward Hook for Gradientenueberpruefung
 def backward_hook(module, grad_input, grad_output):
     date_time = datetime.datetime.now()
-
-
     time = date_time.strftime("%H-%M-%S")
-
 
     print(module)
     print(grad_input[0])
@@ -134,12 +124,12 @@ def backward_hook(module, grad_input, grad_output):
         input = grad_input[0].clone().detach().to('cpu')
         input = grad_input[0].clone().detach().to('cpu').numpy()
         df_i = pd.DataFrame(input)
-        df_i.to_csv(f'./files/V1LSTM/{module}_input_{time}.csv')
+        #df_i.to_csv(f'./files/V1LSTM/{module}_input_{time}.csv')
         writer.add_scalar(f"HookBackW/input{module}", torch.sum(grad_input[0]))
     if grad_output[0] != None:
         output = grad_output[0].clone().detach().to('cpu').numpy()
         df_o = pd.DataFrame(output)
-        df_o.to_csv(f'./files/V1LSTM/{module}_output_{time}.csv')
+        #df_o.to_csv(f'./files/V1LSTM/{module}_output_{time}.csv')
         writer.add_scalar(f"HookBackW/output{module}", torch.sum(grad_output[0]))
     sleep(2)
 
@@ -162,18 +152,14 @@ def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
             :return: Computed Stochastic Decorrelation Constraint (Value)
             """
     #Batch Size (Number of Samples)
-    m = activ.size(dim=0)  # ToDo: 51? - Ja macht keinen sinn sollte BatchSize sein oder
-    #r_alt = np.random.binomial(1, r_para, (activ.size()))  #
-
-    #New r calculation
+    m = activ.size(dim=0)  
+    
     #Init Tensor
     r = torch.ones((2,), dtype=torch.float64)
     #create Tensor with probs (Random decorrelated rate)
     r = r.new_full((activ.size()), r_para)
     #Create Random R for choose Activations for decorr
     rand_r = torch.bernoulli(r)
-    rand_r.requires_grad = True #nicht erforderlich
-    #rand_r = torch.from_numpy(r)
     #push to Device
     rand_r = rand_r.to(DEVICE)
     #Multiplication R * A = A'
@@ -184,9 +170,6 @@ def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
     mü_alt = (1 / a_dach.size(dim=0)) * sum
     #Mean calculation
     mü = torch.mul((1/ a_dach.size(dim=0)), sum)
-
-    #Cov Neu Transpose 1.
-    cov_alt =  (1/m) * (torch.matmul(torch.transpose((a_dach-mü), 0, 1), (a_dach-mü)))
 
     #CrossCovariance calculation (dif. transpose first)
     cov = torch.mul((1/m), (torch.matmul(torch.transpose((a_dach-mü), 0, 1), (a_dach-mü))))
@@ -370,7 +353,7 @@ for epoch in range(epochs):
 
 
 
-#
+
 # #Model save
 torch.save(model, model_train_path)
 
@@ -399,7 +382,7 @@ torch.save({
 
 #Threshold festlegen
 #theorie: höchste MSE der Normalen Daten
-#dementsprechend der testdaten / validierungsdaten des Normalen Datensatzes
+#dementsprechend der validierungsdaten des Normalen Datensatzes
 reconstructed_valid_normal = torch.empty(( SEQUENCE_LEN,51), device='cpu')
 orignal_validation = torch.empty((SEQUENCE_LEN,51), device='cpu')
 loss_normal_val_individ = []
@@ -457,65 +440,6 @@ def createGraph_png():
 
 
     writer.add_graph(model, input_to_model= batch)
-
-
-print("")
-
-def noSeriesData(reconstructed_attacked, reconstructed_normal, reconstructed_valid_normal, orignal_validation, original_normal, original_attacked ):
-    #Reshape (vorher alles aneinander cat, jetzt alle 51 neue Zeile) (n, 51) statt n
-    reconstructed_attacked = torch.reshape(reconstructed_attacked, (-1, SEQUENCE_LEN, 51))
-    reconstructed_normal = torch.reshape(reconstructed_normal, (-1, SEQUENCE_LEN, 51))
-    reconstructed_valid_normal = torch.reshape(reconstructed_valid_normal, (-1, SEQUENCE_LEN, 51))
-
-
-    #Hier Löschen des ersten eintrags
-    reconstructed_attacked = reconstructed_attacked[0:-1] #Fehler? - von -1 bis = [-1:] Bzw.: von 1
-    reconstructed_normal = reconstructed_normal[0:-1] #torch.reshape(reconstructed_normal, (-1, 51))
-    reconstructed_valid_normal = reconstructed_valid_normal[0:-1]
-
-
-    #Operations for orig Data
-    orignal_validation = torch.reshape(orignal_validation, (-1,SEQUENCE_LEN,51))
-    original_normal = torch.reshape(original_normal, (-1,SEQUENCE_LEN,51))
-    original_attacked = torch.reshape(original_attacked,(-1,SEQUENCE_LEN,51))
-
-    orignal_validation = orignal_validation[0:-1]
-    original_normal = original_normal[0:-1]
-    original_attacked = original_attacked[0:-1]
-
-
-    #Copy to cpu for numpy operations
-    attacked_test_data = original_attacked #dataClass.attacked_test_data.to('cpu')
-    test_set_normal = original_normal #dataClass.test_set_normal.to('cpu')
-    valid_data_normal = orignal_validation#dataClass.valid_data.to('cpu')
-    reconstructed_attacked = reconstructed_attacked.to('cpu')
-    reconstructed_normal = reconstructed_normal.to('cpu')
-    reconstructed_valid_normal = reconstructed_valid_normal.to('cpu')
-
-
-
-    #calculate MSE
-    mse_attacked = np.mean(np.power(attacked_test_data.detach().numpy() - reconstructed_attacked.detach().numpy(), 2), axis=1)
-    mse_normal = np.mean(np.power(test_set_normal.detach().numpy() - reconstructed_normal.detach().numpy(), 2), axis=1)
-    mse_valid_normal = np.mean(np.power(valid_data_normal.detach().numpy() - reconstructed_valid_normal.detach().numpy(), 2), axis=1)
-
-
-    fig, ax = plt.subplots(figsize=(6, 6))
-
-
-    ax.hist(mse_normal, bins=2000,  density=True, label="normal", alpha=0.5, color="green")
-    ax.hist(mse_attacked, bins=2000, density=True, label="attacked", alpha=0.5, color="red")
-    ax.hist(mse_valid_normal, bins=2000, density=True, label='valid_normal', alpha=0.5, color="blue")
-
-
-    plt.xlim(0, 0.2)
-    plt.ylim(0, 300)
-
-    plt.title("(Normalized) Reconstruction loss distribution without SDC Baseline activ im decoder")
-    plt.legend()
-    plt.show()
-
-
 
 
 #Calculate Metrics
@@ -805,8 +729,6 @@ plt.savefig(plot_save_path + "Original label vs Threshold Based Classification o
 plt.show()
 
 
-
-print("ADAM , ohne SDC")
 writer.flush()
 writer.close()
 end_time = time.time()
