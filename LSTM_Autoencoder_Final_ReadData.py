@@ -1,19 +1,9 @@
 import pandas as pd
 import torch
-import torchmetrics as torchmetrics
-from matplotlib import pyplot, pyplot as plt
 from sklearn.model_selection import *
-from torch._C._monitor import data_value_t
-from torch.optim import Optimizer
-from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets
 import numpy as np
-import math
 import random as rn
-from torchvision.transforms import ToTensor
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
 from sklearn.preprocessing import Normalizer, MinMaxScaler
 from sklearn.pipeline import Pipeline
 import torch.cuda
