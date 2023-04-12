@@ -41,7 +41,7 @@ addTerm = "1-"
 print(f'Seed: {dataClass.seed}')
 print(f'BatchSize: {dataClass.BATCH_SIZE}')
 print(f'Shuffle: {dataClass.SHUFFLE}')
-run_path = 'tests/testIfSame/Adam1e-3_seed1208_withoutSDC/'
+run_path = '/runs/'
 string = f"{run_path}-Day-{day}- Time-{time_str} + V7 - {addTerm}"
 
 """"""
@@ -55,14 +55,14 @@ print(f'Seq len: {dataClass.SEQUENCE_LEN}')
 print(f'stored: {string}')
 
 
-model_path = 'runs/'
+model_path = '/runs/'
 
-#model_train_path = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + ".pt"
-#model_train_path_dict = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
-#model_validation_path = model_path + "BaseLine_LSTM_Validation" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
+model_train_path = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + ".pt"
+model_train_path_dict = model_path + "BaseLine_LSTM_Train" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
+model_validation_path = model_path + "BaseLine_LSTM_Validation" + "_Day-" + day + "_Time-" + time_str + "_dict.pt"
 
 
-plot_save_path = 'runs/'
+plot_save_path = '/runs/'
 
 
 #print(f'Model Train Dict Stored at: {model_train_path_dict}')
@@ -142,7 +142,7 @@ def register_backward_hook(model):
 
 #register_backward_hook(model)
 
-
+#Stochastische Dekorrelation, der Aktivierungen einer verdeckten Schicht 
 def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
     """
             Initilize Random Matrix
@@ -186,12 +186,13 @@ def custom_loss_SDC(activ, input=None, target=None, r_para = 0.4, y_para = 10):
 
 loss_func = nn.HuberLoss()  #nn.MSELoss()
 
-
+#Optimizer
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 #optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-3)
 #optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-2)
 
+#Hyper-Parameter der Stochastischen Dekorrelation
 R_PARAM = 0.4
 Y_PARAM = 10
 
@@ -354,7 +355,7 @@ for epoch in range(epochs):
 
 
 
-# #Model save
+#Model save
 torch.save(model, model_train_path)
 
 #Alternativ:
@@ -423,24 +424,6 @@ plt.hist(loss_normal_val_individ)
 plt.title("Reconstruction Loss on Validation Data with Train Model")
 plt.savefig(plot_save_path+"Reconstruction Loss on Validation Data Train Model", bbox_inches='tight')
 plt.show()
-
-
-
-def createGraph_png():
-    from torchviz import make_dot
-
-    batch = next(iter(train_dataloader))
-    activ1_encoded, activ2_encoded, activ1_decoded, activ2_decoded, pred = model(batch)
-
-
-
-    make_dot(pred).render("new", format="png")
-    make_dot(pred, params=dict(list(model.named_parameters()))).render("mitH", format="png")
-
-
-
-    writer.add_graph(model, input_to_model= batch)
-
 
 #Calculate Metrics
 
@@ -629,7 +612,7 @@ plt.hist(loss_normal_val_individ)
 plt.title("Reconstruction Loss on Validation Data with Validation Model")
 plt.show()
 
-###Test on Testdata
+#Test on Testdata
 loss_inc_normal_in_attacked = []
 loss_indiv_inc_normal_in_attacked = []
 loss_batch_inc_normal_in_attacked = []
@@ -699,7 +682,7 @@ for label_thresholdBased, orig_label in zip(loss_outliers_inc_normal_in_attacked
 conf_matrix_inc_normal_in_attacked = confusion_matrix(y_true=labels_test_data_on_valid_model, y_pred=loss_outliers_inc_normal_in_attacked, labels=[1,0])
 print(f'Combined Inc. Normal in Attacked: \n {calculate_metrix(conf_matrix_inc_normal_in_attacked)}')
 
-#cm_display= ConfusionMatrixDisplay(conf_matrix_inc_normal_in_attacked, display_labels=[1,0]).plot(values_format='.10g')
+
 
 ####Show Distribution of FP Classifications over Time
 #Labels on TestData vs. Outlier List
