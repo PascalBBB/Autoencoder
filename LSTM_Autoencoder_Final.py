@@ -205,7 +205,8 @@ def calculate_cross_cov(activ):
     cov = (1/activ.size(dim=0)) * (torch.matmul(torch.transpose((activ-mü), 0, 1), (activ-mü)))
 
     summe_cov = torch.sum(cov)
-
+    
+    #Externe Berechnung zur Überprüfung verwendet, nicht nötig
     s = st.CrossCovariance()
     s.add(activ, activ)
     a = s.covariance(unbiased=False)
@@ -695,5 +696,3 @@ writer.flush()
 writer.close()
 end_time = time.time()
 print(f'Ausführungsdauer: {end_time-start_time}, in min: {(end_time-start_time)/60} in std: {(((end_time-start_time)/60)/60)}')
-
-print("done")
